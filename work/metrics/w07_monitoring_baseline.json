@@ -1,0 +1,38 @@
+{
+  "snapshot_month": "2026-03",
+  "artifact_cluster_share_pct": 0.197,
+  "stale_visible_ctr_gap_count": 0,
+  "top500_client_concentration_top2_pct": 89.8,
+  "cluster_centroids": {
+    "impressions_month": {
+      "0": 2630.908,
+      "1": 186.679,
+      "2": 1.862,
+      "3": 2570.146,
+      "4": 15.61
+    },
+    "avg_position": {
+      "0": 12.398,
+      "1": 56.574,
+      "2": 7.263,
+      "3": 11.348,
+      "4": 8.69
+    },
+    "ctr": {
+      "0": 0.262,
+      "1": 0.095,
+      "2": 73.525,
+      "3": 0.293,
+      "4": 0.479
+    },
+    "content_age_days": {
+      "0": 316.879,
+      "1": 239.569,
+      "2": 206.742,
+      "3": 85.808,
+      "4": 152.943
+    }
+  },
+  "n_clients_total": 47,
+  "n_rows_total": 176738
+}
