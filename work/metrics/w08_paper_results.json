@@ -1,0 +1,30 @@
+{
+  "snapshot_month": "2026-03",
+  "analysis_population": {
+    "content_items": 176738,
+    "distinct_clients": 47,
+    "raw_daily_rows": 9841378,
+    "item_level_drop_rate_pct": 46.7,
+    "raw_row_drop_rate_pct": 63.3
+  },
+  "results_vs_baseline": {
+    "baseline_silhouette": 0.054,
+    "baseline_n_groups": 2,
+    "kmeans_silhouette": 0.371,
+    "kmeans_n_groups": 5
+  },
+  "archetype_distribution": {
+    "Fresh performers": 58767,
+    "Low-volume, decent position": 50030,
+    "Aging but visible": 47548,
+    "Buried, low-demand": 20044,
+    "Tiny-volume CTR outliers": 349
+  },
+  "artifact_cluster": {
+    "n": 349,
+    "pct": 0.2
+  },
+  "queue_client_concentration_top2_pct": 89.8,
+  "not_flagged_pct": 95.5,
+  "stale_visible_ctr_gap_count": 0
+}
