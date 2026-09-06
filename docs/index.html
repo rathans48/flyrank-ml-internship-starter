@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Which Content Pages Should You Refresh First? A Validated Prioritization Model on 176K Pages</title>
+<style>
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 2rem 1.25rem 4rem;
+    line-height: 1.6;
+    color: #1a1a1a;
+  }
+  h1 { font-size: 1.8rem; margin-bottom: 0.3rem; }
+  h2 { font-size: 1.3rem; margin-top: 2.5rem; border-bottom: 2px solid #eee; padding-bottom: 0.3rem; }
+  .abstract {
+    background: #f7f8fa;
+    border-left: 4px solid #1f77b4;
+    padding: 1rem 1.25rem;
+    margin: 1.5rem 0;
+    font-size: 1.02rem;
+  }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: 0.95rem; }
+  th, td { border: 1px solid #ddd; padding: 0.5rem 0.7rem; text-align: left; }
+  th { background: #f2f2f2; }
+  img { max-width: 100%; height: auto; display: block; margin: 1rem auto; border: 1px solid #eee; }
+  .caption { text-align: center; font-size: 0.9rem; color: #555; margin-top: -0.5rem; }
+  code { background: #f2f2f2; padding: 0.1rem 0.3rem; border-radius: 3px; font-size: 0.9em; }
+  .limits { background: #fff8f0; border-left: 4px solid #d98c2b; padding: 1rem 1.25rem; }
+  footer { margin-top: 3rem; padding-top: 1.5rem; border-top: 1px solid #eee; font-size: 0.9rem; color: #555; }
+  a { color: #1f77b4; }
+</style>
+</head>
+<body>
+
+<h1>Which Content Pages Should You Refresh First?</h1>
+<p style="color:#555; margin-top:0;">A validated content-prioritization model on 176,738 real production content items</p>
+
+<div class="abstract">
+<strong>Abstract.</strong> Editorial teams managing large content portfolios can't manually review
+every page — so which pages deserve attention first? Using FlyRank's internship warehouse release,
+a 79-million-row production search dataset covering 519,606 content items across 104 clients, I
+built an unsupervised K-Means clustering model on four observable content signals (impressions,
+position, CTR, age). The model was validated against a rule-based baseline using an identical,
+client-grouped held-out split to avoid the group-memorization pitfall a random split would allow.
+K-Means outperformed the baseline on this test set (silhouette 0.371 vs. 0.054), though the
+baseline's most specific rule never fired on this data at all. This is a decision-support
+prioritization tool for human review, not a causal or predictive claim about what refreshing a
+page will do.
+</div>
+
+<h2>Introduction</h2>
+<p>
+A content team managing hundreds of thousands of pages faces a basic problem: which pages should be
+reviewed first in a recurring refresh cycle? FlyRank's own March 2026 research paper found that refresh
+timing is one of the strongest measured levers in this kind of portfolio — but knowing that refresh
+matters doesn't tell an editor which of 176,000+ pages to start with.
+</p>
+<p>
+This project asks whether unsupervised clustering, validated honestly, produces a better prioritization
+signal than a simple hand-written rule — and states plainly what that comparison can and cannot prove.
+</p>
+
+<h2>Data</h2>
+<p>
+Source: FlyRank ML Internship Warehouse Release (<code>hf://datasets/FlyRank/internship-warehouse</code>,
+build v20260703), accessed via a read-only, gated Hugging Face token.
+</p>
+<p>
+Tables used: <code>fact_content_daily_performance</code> (report_date × client × content grain),
+filtered to the <code>month=2026-03</code> partition — a mid-panel month, not the sealed final-month
+sample — joined against <code>dim_content</code>.
+</p>
+<p><strong>Date window:</strong> 2026-03-01 to 2026-03-31 (9,841,378 daily rows).</p>
+<p><strong>What was excluded, and why:</strong></p>
+<ul>
+<li>Daily records with <code>gsc_data_available = FALSE</code> (63.3% of raw rows) carry zero-filled
+placeholder metrics, not real zero-traffic days, and were filtered before aggregation.</li>
+<li>After aggregation to one row per content item, 46.7% of items had no real-GSC-coverage days at all
+and were dropped from the analysis population.</li>
+<li>The <code>fact_content_daily_performance_sample</code> table (June 2026, the panel's final month)
+was never used for any label or feature logic — treated as a sealed test month.</li>
+<li>A small cluster (0.20% of the filtered population, 349 items) with implausible CTR values (73%+)
+was excluded from the ranked queue as a likely tracking anomaly — reported, not hidden.</li>
+</ul>
+<p><strong>Final analysis population:</strong> 176,738 content items across 47 distinct clients.</p>
+<p><em>All content and client identifiers are pseudonymous hashes provided by FlyRank — no real client
+names, URLs, or query strings appear anywhere in this analysis.</em></p>
+
+<h2>Methodology</h2>
+<p><strong>Assumptions:</strong> no ground-truth label exists for "should be refreshed" — this is
+an unsupervised problem, and archetypes are descriptive groupings, not predictions of a known
+outcome. A content item's March 2026 behavior is treated as representative of its current state;
+the method makes no claim about future trajectory. Rows without real GSC coverage are excluded
+rather than imputed.</p>
+<p><strong>Features (4):</strong> log-transformed monthly impressions, average search position, CTR,
+and content age in days — all StandardScaler-normalized.</p>
+<p><strong>Label definition:</strong> no supervised label exists. Two independent signals were compared
+instead: K-Means clustering (k=5, unsupervised), and a rule-based reason code (stale + visible + CTR
+gap) carried forward from an earlier baseline.</p>
+<p><strong>Baseline:</strong> the rule-based reason-code grouping — stale (age ≥ 365 days), visible
+(impressions ≥ 500), and CTR below half the position-tier median — used as the comparison to beat, not
+a ground truth.</p>
+<p><strong>Validation design:</strong> client-grouped 80/20 split (seed 42), chosen because content from
+the same client shares hidden structure a random row-level split would let the model exploit without
+it reflecting real generalization. Both methods were scored on the identical held-out test rows.</p>
+<p><strong>Leakage checks performed:</strong> no product-flags or ID columns used as features; a
+population-selection issue (placeholder-row inclusion) was found and corrected before these results
+were finalized; random-split vs. grouped-split scores were compared directly, and the small gap was
+explained rather than assumed to be leakage (unsupervised clustering has no label to memorize across a
+group boundary the way a classifier would).</p>
+
+<h2>Results</h2>
+<p>Both methods evaluated on the identical held-out test set (38,428 rows, 10 clients unseen during clustering):</p>
+<table>
+<tr><th>Method</th><th>n_groups in test</th><th>Silhouette score</th></tr>
+<tr><td>Baseline (reason codes)</td><td>2 of 3 possible</td><td>0.054</td></tr>
+<tr><td>K-Means (k=5)</td><td>5</td><td>0.371</td></tr>
+</table>
+<img src="figures/w08_results_vs_baseline.png" alt="Bar chart comparing silhouette scores: baseline 0.054 vs K-Means 0.371">
+<p class="caption">K-Means measured a higher silhouette score than the baseline on the same held-out client-grouped split.</p>
+<p>
+K-Means found more internally-consistent groups on these four features than the rule-based codes. This
+is a directional, decision-support signal — not proof that the clusters correspond to real,
+actionable content categories, and not a claim that either method predicts future performance.
+The baseline's most specific rule (<code>stale_visible_ctr_gap</code>) matched 0 of 176,738 items,
+which partly explains its weaker score.
+</p>
+
+<h2>Limitations</h2>
+<div class="limits">
+<ul>
+<li><strong>Cross-sectional, not causal.</strong> A single-month snapshot describes observed structure,
+not the effect of any intervention.</li>
+<li><strong>No ground-truth label.</strong> Silhouette score measures grouping consistency, not
+correctness against a known answer.</li>
+<li><strong>Population-selection is disclosed, not solved.</strong> Every number here describes only
+the 46.7%-smaller subset of the portfolio with real GSC coverage in March 2026.</li>
+<li><strong>The baseline's strongest rule never fires</strong> in this data — the comparison is against
+a baseline whose most specific signal is currently silent.</li>
+<li><strong>Client concentration in the priority queue.</strong> 2 of 47 clients accounted for 89.8% of
+the top 500 ranked items — any use requires a human-applied per-client cap.</li>
+<li><strong>No time-based validation.</strong> Generalization was tested across clients within one
+month, not across months.</li>
+<li><strong>A small artifact cluster (0.20%, 349 items)</strong> with implausible CTR values is
+excluded from the action queue and should be monitored, not assumed permanently negligible.</li>
+</ul>
+</div>
+
+<h2>Ranked Recommendations</h2>
+<table>
+<tr><th>Archetype</th><th>n (%)</th><th>Profile (impr / pos / CTR / age)</th><th>Action</th></tr>
+<tr><td>Aging but visible</td><td>47,548 (26.9%)</td><td>2,631 / 12.4 / 0.26% / 317d</td><td>Refresh candidate</td></tr>
+<tr><td>Buried, low-demand</td><td>20,044 (11.3%)</td><td>187 / 56.6 / 0.10% / 240d</td><td>Deprioritize</td></tr>
+<tr><td>Fresh performers</td><td>58,767 (33.3%)</td><td>2,570 / 11.3 / 0.29% / 86d</td><td>Monitor only</td></tr>
+<tr><td>Low-volume, decent position</td><td>50,030 (28.3%)</td><td>16 / 8.7 / 0.48% / 153d</td><td>Content-gap review</td></tr>
+<tr><td>Tiny-volume CTR outliers</td><td>349 (0.2%)</td><td>2 / 7.3 / 73.5% / 207d</td><td>Excluded — artifact</td></tr>
+</table>
+<img src="figures/w07_archetype_distribution.png" alt="Bar chart of content archetype counts across the portfolio">
+<p class="caption">Distribution of the 176,738-item portfolio across five content archetypes.</p>
+<p><strong>Never automate:</strong> auto-publishing changes, auto-deleting "Buried, low-demand" pages,
+bulk-processing the queue without a per-client cap, treating "not flagged" (95.5% of the portfolio) as
+"confirmed healthy," or using this as a performance metric for content creators.</p>
+
+<h2>Reproducibility</h2>
+<p>
+Full analysis notebooks, committed metrics, and figures are available in the project repository:
+<a href="https://github.com/rathans48/flyrank-ml-internship-starter">github.com/rathans48/flyrank-ml-internship-starter</a>.
+Key files: <code>work/notebooks/capstone.ipynb</code> (this paper's source), <code>work/metrics/w08_paper_results.json</code>
+(headline numbers), <code>work/notebooks/w05_model.ipynb</code> through <code>w07_action_playbook.ipynb</code>
+(full weekly progression). All random seeds fixed at 42.
+</p>
+
+<footer>
+<a href="https://flyrank.ai" target="_blank" rel="noopener">Built on the FlyRank ML Internship dataset</a>.
+</footer>
+
+</body>
+</html>
